@@ -1,35 +1,79 @@
-local Hub = require(script.Hub)
-local Client = require(script.Client)
-local Level = require(script.Level)
+-- https://docs.sentry.io/development/sdk-dev/unified-api/#static-api
+local Hub = require(script.Parent.Hub)
+local Client = require(script.Parent.Client)
+local Types = require(script.Parent.Types)
 
-local Sentry = {
-	Level = Level
+local globalOptions
+local disabled = true
+
+local function getDefaultOptions()
+	return {
+		sampleRate = 1,
+		maxBreadcrumbs = 100,
+		attachStacktrace = false,
+		defaultIntegrations = true,
+		shutdownTimeout = 2
+	}
+end
+
+local Sentry = {}
+
+Sentry.Level = {
+	Fatal = "fatal",
+	Error = "error",
+	Warning = "warning",
+	Info = "info",
+	Debug = "debug"
 }
 
 function Sentry.init(options)
-	Sentry._options = options
-	Client.init(options)
-	Hub.bindClient(Client)
+	local default = getDefaultOptions()
+	for i, v in pairs(options) do
+		default[i] = v
+	end
+	assert(Types.options(default))
+	globalOptions = default
+	Hub.setCurrent(Hub.new(Client.new(globalOptions)))
+	disabled = globalOptions.dsn == nil or globalOptions.dsn == ""
 end
 
 function Sentry.captureEvent(event)
-	return Hub.captureEvent(event)
+	if not disabled then
+		Hub.getCurrent():captureEvent(event)
+	end
 end
 
-function Sentry.captureException(error)
-	return Hub.captureException(error)
+function Sentry.captureException(exception)
+	if not disabled then
+		local hint = {
+			sourceTrace = debug.traceback("Sentry syntheticException", 2)
+		}
+		Hub.getCurrent():captureException(exception, hint)
+	end
 end
 
 function Sentry.captureMessage(message, level)
-	return Hub.captureMessage(message, level)
+	if not disabled then
+		local hint = {
+			sourceTrace = debug.traceback("Sentry syntheticException", 2)
+		}
+		Hub.getCurrent():captureMessage(message, level, hint)
+	end
 end
 
 function Sentry.addBreadcrumb(crumb)
-
+	if not disabled then
+	end
 end
 
 function Sentry.configureScope(callback)
+	if not disabled then
+	end
+end
 
+function Sentry.getLastEventId()
+	if not disabled then
+	end
 end
 
 return Sentry

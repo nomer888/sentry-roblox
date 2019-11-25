@@ -1,112 +1,115 @@
-local generateUUID = require(script.Parent.generateUUID)
+-- https://docs.sentry.io/development/sdk-dev/unified-api/#hub
 local Scope = require(script.Parent.Scope)
-local Cryo = require(script.Parent.Cryo)
-local Parsers = require(script.Parent.Parsers)
+local Client = require(script.Parent.Client)
+local generateUUID = require(script.Parent.generateUUID)
+local Parse = require(script.Parent.Parse)
 
-local API_VERSION = 1
-local DEFAULT_BREADCRUMBS = 30
-local MAX_BREADCRUMBS = 100
+local globalHub
 
-local Hub = {
-	_client = nil,
-	_stack = {Scope.new()},
-	_lastEventId = nil
-}
+local Hub = {}
+Hub.__index = Hub
 
-function Hub.bindClient(client)
-	if Hub._client then
-		warn("Can only bind client once")
-		return
-	end
-	Hub._client = client
+function Hub.new(client, scope)
+	local self = {}
+	self._client = client
+	self._scopes = {scope or Scope.new()}
+	self._lastEventId = nil
+	setmetatable(self, Hub)
+	return self
 end
 
-function Hub.getClient()
-	return Hub._client
+function Hub.setCurrent(hub)
+	globalHub = hub
 end
 
-function Hub.getStackTop()
-	return Hub._stack[#Hub._stack]
+function Hub.getCurrent()
+	return globalHub
 end
 
-function Hub.pushScope()
-	local stack = Hub._stack
-	local parentScope = stack[#stack]
-	local scope = Scope.clone(parentScope)
-	stack[#stack + 1] = scope
-	return scope
+function Hub:getTopScope()
+	return self._scopes[#self._scopes]
 end
 
-function Hub.popScope()
-	local top = Hub.getStackTop()
-	Hub._stack[#Hub._stack] = nil
-	return top ~= nil
-end
-
-function Hub.withScope(callback)
-	local scope = Hub.pushScope()
-	pcall(callback, scope)
-	Hub.popScope()
-end
-
-function Hub.captureException(exceptionString, hint)
+function Hub:captureEvent(event, hint)
+	local final = event
 	local eventId = generateUUID()
-	Hub._lastEventId = eventId
+	self._lastEventId = eventId
 
-	local hintExtra = {}
-	if not Parsers.extractStackFromTrace(exceptionString) then
-		-- 1 (here) -> 2 (Static API) -> 3 (original call site)
-		local trace = debug.traceback(exceptionString, 3)
-		hintExtra = {
-			originalException = exceptionString,
-			extraTrace = trace
+	final.event_id = eventId
+
+	local options = self:getClient():getOptions()
+	if options.attachStacktrace and hint.sourceTrace and not final.exception then
+		final.exception = Parse.exception(hint.sourceTrace)
+	end
+
+	self:getClient():captureEvent(final, self:getTopScope())
+end
+
+function Hub:captureMessage(message, level, hint)
+	local eventId = generateUUID()
+	self._lastEventId = eventId
+
+	local final = {
+		event_id = eventId,
+		level = level,
+		message = {
+			formatted = message
 		}
+	}
+
+	local options = self:getClient():getOptions()
+	if options.attachStacktrace and hint.sourceTrace then
+		final.exception = Parse.exception(hint.sourceTrace)
 	end
 
-	local finalHint = Cryo.Dictionary.join(hintExtra, hint or {})
-
-	finalHint.event_id = eventId
-
-	Hub.getClient().captureException(exceptionString, finalHint, Hub.getStackTop())
-
-	return eventId
+	self:getClient():captureEvent(final, self:getTopScope())
 end
 
-function Hub.captureMessage(message, level, hint)
+function Hub:captureException(exception, hint)
 	local eventId = generateUUID()
-	Hub._lastEventId = eventId
-	local finalHint = hint
+	self._lastEventId = eventId
 
-	if not hint then
-		-- 1 (here) -> 2 (Static API) -> 3 (original call site)
-		local trace = debug.traceback(message, 3)
-		finalHint = {
-			originalException = message,
-			extraTrace = trace
-		}
+	local final = {
+		event_id = eventId,
+		exception = Parse.exception(exception)
+	}
+
+	local options = self:getClient():getOptions()
+	if options.attachStacktrace and hint.sourceTrace and not final.exception.stacktrace then
+		final.exception.stacktrace = Parse.exception(hint.sourceTrace).stacktrace
 	end
 
-	finalHint.event_id = eventId
-
-	Hub.getClient().captureMessage(message, level, finalHint, Hub.getStackTop())
-
-	return eventId
+	self:getClient():captureEvent(final, self:getTopScope())
 end
 
-function Hub.captureEvent(event, hint)
-	local eventId = generateUUID()
-	Hub._lastEventId = eventId
-
-	hint = hint or {}
-	hint.event_id = eventId
-
-	Hub.getClient().captureEvent(event, hint, Hub.getStackTop())
-
-	return eventId
+function Hub:pushScope(scope)
+	scope = scope or self:getTopScope():clone()
+	self._scopes[#self._scopes + 1] = scope
+	return function()
+		for i, v in pairs(self._scopes) do
+			if v == scope then
+				table.remove(self._scopes, i)
+			end
+		end
+	end
 end
 
-function Hub.lastEventId()
-	return Hub._lastEventId
+function Hub:withScope(callback)
+	local scope = self:getTopScope():clone()
+	local pop = self:pushScope(scope)
+	callback(scope)
+	pop()
+end
+
+function Hub:addBreadcrumb(crumb)
+end
+
+function Hub:getClient()
+	return self._client
+end
+
+function Hub:getLastEventId()
+	return self._lastEventId
 end
 
 return Hub

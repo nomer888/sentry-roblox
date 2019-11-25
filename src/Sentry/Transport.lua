@@ -1,69 +1,84 @@
 local HttpService = game:GetService("HttpService")
 
-local API = require(script.Parent.API)
-local Cryo = require(script.Parent.Cryo)
+local Parse = require(script.Parent.Parse)
 local Version = require(script.Parent.Version)
-local TaskQueue = require(script.Parent.TaskQueue)
 
 local Transport = {}
 Transport.__index = Transport
 
-function Transport.new(options)
+function Transport.new(dsn)
 	local self = {}
-	self._api = API.new(options.dsn)
-	self._options = options
-	self._taskQueue = TaskQueue.new(30)
+	self._dsn = Parse.dsn(dsn)
+	self._queue = {}
+	self._closed = false
 	setmetatable(self, Transport)
+	while not self._closed do
+		for _, callback in ipairs(self._queue) do
+			pcall(callback)
+		end
+		self._queue = {}
+		wait(1)
+	end
 	return self
 end
 
-function Transport:_getRequestOptions()
-	local headers = Cryo.Dictionary.join(
-		self._api:getRequestHeaders(Version.SDK_NAME, Version.SDK_VERSION),
-		self._options.headers or {}
-	)
-	local dsn = self._api:getDsn()
-
-	print(self._api:getStoreEndpoint())
-	return {
-		Url = self._api:getStoreEndpoint(),
-		Method = "POST",
-		Headers = headers,
-	}
+function Transport:_addToQueue(callback)
+	self._queue[self._queue + 1] = callback
 end
 
-function Transport:_sendEvent(event)
-	self._taskQueue:add(function()
-		local request = self:_getRequestOptions()
-		local encodeSuccess, encodeResult = pcall(function()
-			return HttpService:JSONEncode(event)
+function Transport:sendEvent(event)
+	if self._closed then
+		return
+	end
+	local dsn = self._dsn
+	local baseUri = ("%s://%s"):format(dsn.protocol, dsn.host)
+	local url = ("%s/api/%d/store/"):format(baseUri, dsn.projectId)
+	local agent = ("%s/%s"):format(Version.SDK_NAME, Version.SDK_VERSION)
+	local auth = {
+		sentry_version = Version.PROTOCOL_VERSION,
+		sentry_client = agent,
+		sentry_timestamp = os.time(),
+		sentry_key = dsn.publicKey,
+		sentry_secret = dsn.secretKey
+	}
+	local request = {
+		Url = url,
+		Method = "POST",
+		Headers = {
+			["User-Agent"] = agent,
+			["Content-Type"] = "application/json",
+			["X-Sentry-Auth"] = auth
+		},
+		Body = HttpService:JSONEncode(event)
+	}
+	self:_addToQueue(function()
+		if self._retryAfter then
+			wait(self._retryAfter - os.time())
+			self._retryAfter = nil
+		end
+		local ok, result = pcall(function()
+			HttpService:RequestAsync(request)
 		end)
-		if not encodeSuccess then
-			print(encodeResult)
+		if not ok then
 			return
 		end
-		request.Body = encodeResult
-		local success, response = pcall(function()
-			return HttpService:RequestAsync(request)
-		end)
-		if not success then
-			print(response)
-			return
-		end
-		if response.Success then
-			print("succeeded")
-		else
-			if response.Headers and response.Headers["x-sentry-error"] then
-				print("error", response.Headers["x-sentry-error"])
-			else
-				print("error")
+		if not result.Success then
+			local message = ("HTTP Error %d: %s\n"):format(result.StatusCode, result.StatusMessage)
+			if result.Headers["x-sentry-error"] then
+				message = message .. result.Headers["x-sentry-error"]
+			end
+			warn(message)
+			if result.StatusCode == 429 then
+				local retryAfter = result.Headers["Retry-After"]
+				if retryAfter then
+					wait(retryAfter)
+				end
 			end
 		end
 	end)
 end
 
-function Transport:flush(timeout)
-	return self._taskQueue:flush(timeout)
+function Transport:close(timeout)
 end
 
 return Transport

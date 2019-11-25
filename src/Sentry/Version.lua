@@ -1,4 +1,5 @@
 return {
-	SDK_NAME = "sentry-roblox",
-	SDK_VERSION = "1.0"
+	PROTOCOL_VERSION = "7",
+	SDK_NAME = "sentry.roblox",
+	SDK_VERSION = "0.1.0"
 }
