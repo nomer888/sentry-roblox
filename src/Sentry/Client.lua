@@ -9,6 +9,7 @@ Client.__index = Client
 function Client.new(options)
 	local self = {}
 	self._options = options
+	self._transport = Transport.new(options.dsn)
 	setmetatable(self, Client)
 	return self
 end
@@ -46,12 +47,13 @@ function Client:_prepareEvent(event, scope)
 	return prepared
 end
 
-function Client:_processEvent(event)
+function Client:_processEvent(event, scope)
 	local options = self:getOptions()
-	if math.random() < options.sampleRate then
+	if math.random() > options.sampleRate then
+		warn("Event has been sampled")
 		return
 	end
-	local prepared = self:_prepareEvent(event)
+	local prepared = self:_prepareEvent(event, scope)
 	local beforeSendResult = prepared
 	if options.beforeSend then
 		beforeSendResult = options.beforeSend(prepared)
@@ -59,10 +61,14 @@ function Client:_processEvent(event)
 	if not beforeSendResult then
 		return
 	end
-	Transport.sendEvent(beforeSendResult, options.dsn)
+	self._transport:sendEvent(beforeSendResult)
+	return beforeSendResult
 end
 
 function Client:captureEvent(event, scope)
+	local final = self:_processEvent(event, scope)
+	-- todo: set last event id in hub
+	return final and final.event_id
 end
 
 function Client:close(timeout)
