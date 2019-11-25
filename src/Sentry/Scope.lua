@@ -159,6 +159,7 @@ function Scope:_processEvent(event)
 				return nil
 			end
 		end
+		return current
 	end
 	return event
 end
