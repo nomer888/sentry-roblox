@@ -12,18 +12,20 @@ function Transport.new(dsn)
 	self._queue = {}
 	self._closed = false
 	setmetatable(self, Transport)
-	while not self._closed do
-		for _, callback in ipairs(self._queue) do
-			pcall(callback)
+	coroutine.wrap(function()
+		while not self._closed do
+			for _, callback in ipairs(self._queue) do
+				callback()
+			end
+			self._queue = {}
+			wait(1)
 		end
-		self._queue = {}
-		wait(1)
-	end
+	end)()
 	return self
 end
 
 function Transport:_addToQueue(callback)
-	self._queue[self._queue + 1] = callback
+	self._queue[#self._queue + 1] = callback
 end
 
 function Transport:sendEvent(event)
@@ -33,21 +35,19 @@ function Transport:sendEvent(event)
 	local dsn = self._dsn
 	local baseUri = ("%s://%s"):format(dsn.protocol, dsn.host)
 	local url = ("%s/api/%d/store/"):format(baseUri, dsn.projectId)
-	local agent = ("%s/%s"):format(Version.SDK_NAME, Version.SDK_VERSION)
-	local auth = {
-		sentry_version = Version.PROTOCOL_VERSION,
-		sentry_client = agent,
-		sentry_timestamp = os.time(),
-		sentry_key = dsn.publicKey,
-		sentry_secret = dsn.secretKey
+	local client = ("%s/%s"):format(Version.SDK_NAME, Version.SDK_VERSION)
+	local auth = {("Sentry sentry_version=%s"):format(Version.PROTOCOL_VERSION),
+		("sentry_timestamp=%d"):format(os.time()),
+		("sentry_client=%s"):format(client),
+		("sentry_key=%s"):format(dsn.publicKey),
+		dsn.pass and ("sentry_secret=%s"):format(dsn.secretKey)
 	}
 	local request = {
 		Url = url,
 		Method = "POST",
 		Headers = {
-			["User-Agent"] = agent,
 			["Content-Type"] = "application/json",
-			["X-Sentry-Auth"] = auth
+			["X-Sentry-Auth"] = table.concat(auth, ",")
 		},
 		Body = HttpService:JSONEncode(event)
 	}
@@ -57,9 +57,10 @@ function Transport:sendEvent(event)
 			self._retryAfter = nil
 		end
 		local ok, result = pcall(function()
-			HttpService:RequestAsync(request)
+			return HttpService:RequestAsync(request)
 		end)
 		if not ok then
+			warn(result)
 			return
 		end
 		if not result.Success then
@@ -75,6 +76,7 @@ function Transport:sendEvent(event)
 				end
 			end
 		end
+		print("Sent event successfully")
 	end)
 end
 
