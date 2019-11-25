@@ -21,7 +21,7 @@ function Parse.stacktrace(str)
 			filename = fileName,
 			["function"] = functionName,
 			raw_function = functionName,
-			lineno = lineNo,
+			lineno = tonumber(lineNo),
 		})
 	end
 	return frames
