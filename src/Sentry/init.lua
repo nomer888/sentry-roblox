@@ -1,7 +1,8 @@
 -- https://docs.sentry.io/development/sdk-dev/unified-api/#static-api
-local Hub = require(script.Parent.Hub)
-local Client = require(script.Parent.Client)
-local Types = require(script.Parent.Types)
+local Hub = require(script.Hub)
+local Client = require(script.Client)
+local Types = require(script.Types)
+local DefaultIntegrations = require(script.DefaultIntegrations)
 
 local globalOptions
 local disabled = true
@@ -35,6 +36,12 @@ function Sentry.init(options)
 	globalOptions = default
 	Hub.setCurrent(Hub.new(Client.new(globalOptions)))
 	disabled = globalOptions.dsn == nil or globalOptions.dsn == ""
+	if not disabled then
+		for name, integration in pairs(DefaultIntegrations) do
+			integration(Sentry)
+			print("Integration installed:", name)
+		end
+	end
 end
 
 function Sentry.captureEvent(event)
