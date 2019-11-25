@@ -2,6 +2,7 @@ local HttpService = game:GetService("HttpService")
 
 local Parse = require(script.Parent.Parse)
 local Version = require(script.Parent.Version)
+local Log = require(script.Parent.Log)
 
 local Transport = {}
 Transport.__index = Transport
@@ -52,15 +53,11 @@ function Transport:sendEvent(event)
 		Body = HttpService:JSONEncode(event)
 	}
 	self:_addToQueue(function()
-		if self._retryAfter then
-			wait(self._retryAfter - os.time())
-			self._retryAfter = nil
-		end
 		local ok, result = pcall(function()
 			return HttpService:RequestAsync(request)
 		end)
 		if not ok then
-			warn(result)
+			Log.warn(result)
 			return
 		end
 		if not result.Success then
@@ -68,16 +65,19 @@ function Transport:sendEvent(event)
 			if result.Headers["x-sentry-error"] then
 				message = message .. result.Headers["x-sentry-error"]
 			end
-			warn(message)
+			Log.warn(message)
 			if result.StatusCode == 429 then
 				local retryAfter = result.Headers["Retry-After"]
 				if retryAfter then
+					Log.info("Retrying after "..retryAfter)
 					wait(retryAfter)
 				end
 			end
+			return
 		end
-		print("Sent event successfully")
+		Log.info("Event sent successfully")
 	end)
+	Log.info("Event added to queue")
 end
 
 function Transport:close(timeout)

@@ -2,6 +2,7 @@
 local generateUUID = require(script.Parent.generateUUID)
 local Transport = require(script.Parent.Transport)
 local Version = require(script.Parent.Version)
+local Log = require(script.Parent.Log)
 
 local Client = {}
 Client.__index = Client
@@ -50,7 +51,7 @@ end
 function Client:_processEvent(event, scope)
 	local options = self:getOptions()
 	if math.random() > options.sampleRate then
-		warn("Event has been sampled")
+		Log.info("Event has been sampled")
 		return
 	end
 	local prepared = self:_prepareEvent(event, scope)
