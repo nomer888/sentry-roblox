@@ -32,25 +32,22 @@ end
 
 function Hub:captureEvent(event, hint)
 	local final = event
-	local eventId = generateUUID()
-	self._lastEventId = eventId
 
-	final.event_id = eventId
+	final.event_id = generateUUID()
 
 	local options = self:getClient():getOptions()
 	if options.attachStacktrace and hint.sourceTrace and not final.exception then
 		final.exception = Parse.exception(hint.sourceTrace)
 	end
 
-	self:getClient():captureEvent(final, self:getTopScope())
+	local eventId = self:getClient():captureEvent(final, self:getTopScope())
+	self._lastEventId = eventId
+	return eventId
 end
 
 function Hub:captureMessage(message, level, hint)
-	local eventId = generateUUID()
-	self._lastEventId = eventId
-
 	local final = {
-		event_id = eventId,
+		event_id = generateUUID(),
 		level = level,
 		message = {
 			formatted = message
@@ -62,15 +59,14 @@ function Hub:captureMessage(message, level, hint)
 		final.exception = Parse.exception(hint.sourceTrace)
 	end
 
-	self:getClient():captureEvent(final, self:getTopScope())
+	local eventId = self:getClient():captureEvent(final, self:getTopScope())
+	self._lastEventId = eventId
+	return eventId
 end
 
 function Hub:captureException(exception, hint)
-	local eventId = generateUUID()
-	self._lastEventId = eventId
-
 	local final = {
-		event_id = eventId,
+		event_id = generateUUID(),
 		exception = Parse.exception(exception)
 	}
 
@@ -79,7 +75,9 @@ function Hub:captureException(exception, hint)
 		final.exception.stacktrace = Parse.exception(hint.sourceTrace).stacktrace
 	end
 
-	self:getClient():captureEvent(final, self:getTopScope())
+	local eventId = self:getClient():captureEvent(final, self:getTopScope())
+	self._lastEventId = eventId
+	return eventId
 end
 
 function Hub:pushScope(scope)

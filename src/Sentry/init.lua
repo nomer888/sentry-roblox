@@ -46,7 +46,7 @@ end
 
 function Sentry.captureEvent(event)
 	if not disabled then
-		Hub.getCurrent():captureEvent(event)
+		return Hub.getCurrent():captureEvent(event)
 	end
 end
 
@@ -55,7 +55,7 @@ function Sentry.captureException(exception)
 		local hint = {
 			sourceTrace = debug.traceback("Sentry syntheticException", 2)
 		}
-		Hub.getCurrent():captureException(exception, hint)
+		return Hub.getCurrent():captureException(exception, hint)
 	end
 end
 
@@ -64,7 +64,7 @@ function Sentry.captureMessage(message, level)
 		local hint = {
 			sourceTrace = debug.traceback("Sentry syntheticException", 2)
 		}
-		Hub.getCurrent():captureMessage(message, level, hint)
+		return Hub.getCurrent():captureMessage(message, level, hint)
 	end
 end
 
