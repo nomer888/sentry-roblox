@@ -6,6 +6,6 @@ return function(sdk)
 			warn("SDK error: "..message.."\n"..trace)
 			return
 		end
-		sdk:captureException(message.."\n"..trace)
+		sdk.captureException(message.."\n"..trace)
 	end)
 end
