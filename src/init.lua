@@ -1,7 +1,6 @@
 -- https://docs.sentry.io/development/sdk-dev/unified-api/#static-api
 local Hub = require(script.Hub)
 local Client = require(script.Client)
--- local Types = require(script.Types)
 local DefaultIntegrations = require(script.DefaultIntegrations)
 local Log = require(script.Log)
 
@@ -34,7 +33,6 @@ function Sentry.init(options)
 	for i, v in pairs(options) do
 		default[i] = v
 	end
-	-- assert(Types.options(default))
 	globalOptions = default
 	Log.setEnabled(globalOptions.debug)
 	Hub.setCurrent(Hub.new(Client.new(globalOptions)))
