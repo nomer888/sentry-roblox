@@ -68,7 +68,6 @@ end
 
 function Client:captureEvent(event, scope)
 	local final = self:_processEvent(event, scope)
-	-- todo: set last event id in hub
 	return final and final.event_id
 end
 
