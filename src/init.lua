@@ -14,7 +14,7 @@ local function getDefaultOptions()
 		attachStacktrace = false,
 		defaultIntegrations = true,
 		shutdownTimeout = 2,
-		debug = true
+		debug = false
 	}
 end
 
