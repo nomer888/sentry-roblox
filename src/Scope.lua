@@ -1,5 +1,5 @@
 -- https://docs.sentry.io/development/sdk-dev/unified-api/#scope
-local Cryo = require(script.Parent.Cryo)
+local Cryo = require(script.Parent.lib.Cryo)
 
 local function copy(value)
 	if type(value) == "table" then
