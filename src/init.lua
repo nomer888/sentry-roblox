@@ -80,7 +80,13 @@ end
 
 function Sentry.configureScope(callback)
 	if not disabled then
-		Log.info("configureScope not supported yet")
+		return Hub.getCurrent():configureScope(callback)
+	end
+end
+
+function Sentry.withScope(callback)
+	if not disabled then
+		return Hub.getCurrent():withScope(callback)
 	end
 end
 

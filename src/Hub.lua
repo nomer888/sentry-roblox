@@ -92,6 +92,10 @@ function Hub:pushScope(scope)
 	end
 end
 
+function Hub:configureScope(callback)
+	callback(self:getTopScope())
+end
+
 function Hub:withScope(callback)
 	local scope = self:getTopScope():clone()
 	local pop = self:pushScope(scope)
