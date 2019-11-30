@@ -109,13 +109,15 @@ function Scope:clear()
 	self.breadcrumbs = nil
 end
 
-function Scope:addBreadcrumb(crumb)
+function Scope:addBreadcrumb(crumb, maxBreadcrumbs)
 	if not self.breadcrumbs then
 		self.breadcrumbs = {}
 	end
-	-- todo: max breadcrumbs
 	crumb = copy(crumb)
 	crumb.timestamp = os.time()
+	if #self.breadcrumbs > maxBreadcrumbs then
+		table.remove(self.breadcrumbs, 1)
+	end
 	self.breadcrumbs[#self.breadcrumbs + 1] = crumb
 end
 

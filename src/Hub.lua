@@ -104,6 +104,7 @@ function Hub:withScope(callback)
 end
 
 function Hub:addBreadcrumb(crumb)
+	self:getTopScope():addBreadcrumb(crumb, self:getClient():getOptions().maxBreadcrumbs)
 end
 
 function Hub:getClient()

@@ -3,6 +3,7 @@ local Hub = require(script.Hub)
 local Client = require(script.Client)
 local DefaultIntegrations = require(script.DefaultIntegrations)
 local Log = require(script.Log)
+local Breadcrumb = require(script.Breadcrumb)
 
 local globalOptions
 local disabled = true
@@ -74,7 +75,7 @@ end
 
 function Sentry.addBreadcrumb(crumb)
 	if not disabled then
-		Log.info("addBreadcrumb not supported yet")
+		return Hub.getCurrent():addBreadcrumb(Breadcrumb.new(crumb))
 	end
 end
 
