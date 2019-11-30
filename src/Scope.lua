@@ -1,6 +1,4 @@
 -- https://docs.sentry.io/development/sdk-dev/unified-api/#scope
-local Cryo = require(script.Parent.lib.Cryo)
-
 local function copy(value)
 	if type(value) == "table" then
 		local new = {}
@@ -10,6 +8,19 @@ local function copy(value)
 		return new
 	end
 	return value
+end
+
+local function merge(base, ...)
+	local new = {}
+	for i, v in pairs(base) do
+		new[i] = v
+	end
+	for i = 1, select("#", ...) do
+		for i, v in pairs(select(i, ...)) do
+			new[i] = v
+		end
+	end
+	return new
 end
 
 local Scope = {}
@@ -114,16 +125,16 @@ end
 
 function Scope:applyToEvent(event)
 	if self.user then
-		event.user = Cryo.Dictionary.join(event.user, self.user)
+		event.user = merge(event.user, self.user)
 	end
 	if self.extra then
-		event.extra = Cryo.Dictionary.join(event.extra, self.extra)
+		event.extra = merge(event.extra, self.extra)
 	end
 	if self.tags then
-		event.tags = Cryo.Dictionary.join(event.tags, self.tags)
+		event.tags = merge(event.tags, self.tags)
 	end
 	if self.context then
-		event.context = Cryo.Dictionary.join(event.context, self.context)
+		event.context = merge(event.context, self.context)
 	end
 	if not event.level then
 		event.level = self.level
