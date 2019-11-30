@@ -24,7 +24,7 @@
     },
     "ServerScriptService": {
       "$className": "ServerScriptService",
-      "Source": {
+      "Sentry": {
         "$path": "src"
       }
     },
