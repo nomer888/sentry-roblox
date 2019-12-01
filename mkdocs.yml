@@ -1,0 +1,22 @@
+site_name: Sentry for Roblox Documentation
+repo_name: nomer/sentry-roblox
+repo_url: https://gitlab.com/nomer/sentry-roblox
+
+theme:
+  name: 'material'
+  palette:
+    primary: 'deep purple'
+    accent: 'purple'
+
+nav:
+    - Home: index.md
+    - Getting Started: getting-started.md
+    - Advanced Usage: advanced-usage.md
+    - API Reference: api-reference.md
+
+markdown_extensions:
+  - admonition
+  - codehilite:
+      guess_lang: false
+  - toc:
+      permalink: true
